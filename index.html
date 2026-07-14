@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>สมุดบันทึกร้านซัก-อบ</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+
+  :root{
+    --bg:#EFF5F4;
+    --card:#FFFFFF;
+    --ink:#16323A;
+    --ink-soft:#5B7278;
+    --teal:#0F6B72;
+    --teal-dark:#0A4F54;
+    --teal-pale:#DCEEEC;
+    --gold:#C89B3C;
+    --gold-soft:#F5E9C8;
+    --green:#2F8F5B;
+    --green-soft:#E4F3EA;
+    --red:#C4573F;
+    --red-soft:#FBE7E2;
+    --border:#DCE6E5;
+    --meter-bg:#123339;
+    --meter-fg:#8FE3D6;
+    font-family:'Sarabun','Noto Sans Thai',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body,.root{margin:0;padding:0;}
+  .app{
+    background:var(--bg);
+    min-height:100vh;
+    color:var(--ink);
+    padding:18px 14px 60px;
+    max-width:480px;
+    margin:0 auto;
+  }
+  .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .header h1{font-size:19px;font-weight:700;margin:0;letter-spacing:.2px;}
+  .header .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .gear-btn{
+    width:38px;height:38px;border-radius:50%;
+    background:var(--card);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;cursor:pointer;color:var(--teal-dark);flex-shrink:0;
+  }
+  .date-pill{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--teal-pale);color:var(--teal-dark);
+    padding:5px 12px;border-radius:999px;font-size:12.5px;font-weight:600;margin-bottom:14px;
+  }
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;}
+  .card h2{font-size:14.5px;font-weight:700;margin:0 0 12px;color:var(--teal-dark);display:flex;align-items:center;gap:6px;}
+  .machine-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+  .machine-row:last-child{border-bottom:none;}
+  .machine-info{flex:1;min-width:0;}
+  .machine-name{font-size:14px;font-weight:600;color:var(--ink);}
+  .machine-meta{font-size:11.5px;color:var(--ink-soft);margin-top:1px;}
+  .stepper{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .step-btn{
+    width:32px;height:32px;border-radius:50%;border:1.5px solid var(--teal);background:var(--card);
+    color:var(--teal-dark);font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;user-select:none;transition:transform .06s ease;
+  }
+  .step-btn:active{transform:scale(.9);background:var(--teal-pale);}
+  .step-btn.plus{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .count-display{min-width:26px;text-align:center;font-size:16px;font-weight:700;}
+  .row-subtotal{font-size:11.5px;color:var(--gold);font-weight:700;margin-top:2px;text-align:right;width:52px;flex-shrink:0;}
+
+  .meter{background:var(--meter-bg);border-radius:14px;padding:16px 16px 14px;color:var(--meter-fg);margin-bottom:14px;}
+  .meter-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;}
+  .meter-label{font-size:12px;color:#B9D8D3;letter-spacing:.3px;}
+  .meter-value{font-size:15px;font-weight:700;letter-spacing:.5px;}
+  .meter-value.big{font-size:26px;color:#fff;}
+  .meter-divider{height:1px;background:rgba(255,255,255,.12);margin:6px 0;}
+
+  .save-btn{
+    width:100%;padding:14px;border:none;border-radius:14px;background:var(--gold);color:#3A2B08;
+    font-size:15.5px;font-weight:700;cursor:pointer;letter-spacing:.3px;box-shadow:0 3px 0 #A17E2E;transition:transform .05s ease;
+  }
+  .save-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #A17E2E;}
+  .save-btn:disabled{opacity:.6;}
+  .export-btn{
+    width:100%;padding:12px;border:1.5px solid var(--teal);border-radius:12px;background:#fff;color:var(--teal-dark);
+    font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.2px;margin-bottom:14px;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .export-btn:active{background:var(--teal-pale);}
+  .toast{text-align:center;font-size:12.5px;color:var(--green);font-weight:600;margin-top:8px;min-height:16px;}
+  .toast.err{color:var(--red);}
+
+  .tab-row{display:flex;gap:5px;margin-bottom:14px;}
+  .tab-btn{
+    flex:1;padding:8px 0;border-radius:10px;border:1px solid var(--border);background:var(--card);
+    font-size:11px;font-weight:600;color:var(--ink-soft);cursor:pointer;
+  }
+  .tab-btn.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .stat-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;}
+  .stat-box .label{font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .stat-box .value{font-size:19px;font-weight:700;color:var(--teal-dark);}
+  .stat-box.profit .value{color:var(--green);}
+
+  .bar-wrap{display:flex;align-items:flex-end;gap:5px;height:90px;margin:8px 0 4px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .bar{width:100%;border-radius:5px 5px 2px 2px;background:var(--teal);min-height:3px;}
+  .bar-day{font-size:9.5px;color:var(--ink-soft);margin-top:4px;}
+
+  .history-item{padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+  .history-item:last-child{border-bottom:none;}
+  .history-item-top{display:flex;justify-content:space-between;align-items:center;}
+  .history-date{font-size:13.5px;font-weight:600;}
+  .history-sub{font-size:11px;color:var(--ink-soft);margin-top:1px;}
+  .history-right{text-align:right;display:flex;align-items:center;gap:8px;}
+  .history-profit{font-size:14px;font-weight:700;color:var(--green);}
+  .history-caret{font-size:11px;color:var(--ink-soft);transition:transform .15s ease;}
+  .history-caret.open{transform:rotate(180deg);}
+  .del-btn{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--card);color:var(--red);font-size:13px;cursor:pointer;}
+  .history-detail{margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);}
+  .detail-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;color:var(--ink-soft);}
+  .detail-row .dname{color:var(--ink);font-weight:600;}
+  .empty-note{font-size:12.5px;color:var(--ink-soft);text-align:center;padding:14px 0;}
+
+  .settings-panel{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;}
+  .rate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .rate-field label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  .rate-field input,.rate-field select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13.5px;font-family:inherit;text-align:center;}
+  .machine-settings-card{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#FAFCFC;position:relative;}
+  .machine-settings-card .msc-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;}
+  .machine-settings-card .msc-title-row input.name-input{flex:1;font-size:13px;font-weight:700;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-family:inherit;}
+  .msc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .msc-field label{display:block;font-size:10.5px;color:var(--ink-soft);margin-bottom:3px;}
+  .msc-field input,.msc-field select{width:100%;padding:6px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;text-align:center;}
+  .msc-computed{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--gold);font-weight:700;text-align:right;}
+  .msc-del{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--red);font-size:12px;cursor:pointer;flex-shrink:0;}
+  .add-machine-btn{
+    width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--teal);background:var(--teal-pale);
+    color:var(--teal-dark);font-weight:700;font-size:13px;cursor:pointer;margin-bottom:12px;
+  }
+  .close-settings{margin-top:6px;width:100%;padding:10px;border-radius:10px;border:none;background:var(--teal-dark);color:#fff;font-weight:700;font-size:13.5px;cursor:pointer;}
+
+  .progress-bar-track{width:100%;height:22px;background:var(--teal-pale);border-radius:999px;overflow:hidden;margin:10px 0 4px;}
+  .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:999px;transition:width .3s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;}
+  .progress-bar-fill span{font-size:10.5px;color:#fff;font-weight:700;}
+  .payback-ring-wrap{display:flex;flex-direction:column;align-items:center;padding:8px 0 4px;}
+  .payback-big{font-size:30px;font-weight:800;color:var(--teal-dark);}
+  .payback-sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+
+  .invest-form{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:10px;}
+  .invest-form-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .invest-form-row input{flex:1 1 100px;}
+  .invest-form-row input#invDesc{flex:2 1 140px;}
+  .invest-form input{padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:inherit;min-width:0;}
+  .add-invest-btn{padding:10px;border:none;border-radius:10px;background:var(--gold);color:#3A2B08;font-weight:700;font-size:13px;cursor:pointer;}
+  .invest-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+  .invest-item:last-child{border-bottom:none;}
+  .invest-item .idate{font-size:11px;color:var(--ink-soft);}
+  .invest-item .idesc{font-size:13px;font-weight:600;}
+  .invest-item .iamount{font-size:13.5px;font-weight:700;color:var(--teal-dark);}
+
+  .machine-stat-card{border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;background:var(--card);}
+  .machine-stat-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .machine-stat-name{font-size:14px;font-weight:700;}
+  .machine-stat-name .tag{font-size:10.5px;color:var(--ink-soft);font-weight:500;}
+  .badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;}
+  .badge.warn{background:var(--red-soft);color:var(--red);}
+  .badge.ok{background:var(--green-soft);color:var(--green);}
+  .mini-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+  .mini-stat{font-size:11px;color:var(--ink-soft);}
+  .mini-stat b{display:block;font-size:15px;color:var(--ink);font-weight:700;}
+  .interval-row{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-soft);margin-bottom:8px;}
+  .interval-row input{width:70px;padding:5px;border:1px solid var(--border);border-radius:6px;font-family:inherit;text-align:center;}
+  .service-btn{
+    width:100%;padding:9px;border-radius:9px;border:1px solid var(--teal);background:#fff;color:var(--teal-dark);
+    font-size:12.5px;font-weight:700;cursor:pointer;
+  }
+
+  .tab-btn{position:relative;}
+  .tab-dot{
+    position:absolute;top:3px;right:8px;width:8px;height:8px;border-radius:50%;
+    background:var(--red);box-shadow:0 0 0 2px var(--card);
+  }
+  .maint-banner{
+    display:flex;align-items:center;gap:10px;background:var(--red-soft);border:1px solid #F0C6BB;
+    border-radius:14px;padding:12px 14px;margin-bottom:14px;cursor:pointer;
+  }
+  .maint-banner .icon{font-size:20px;flex-shrink:0;}
+  .maint-banner .txt{font-size:13px;color:var(--red);font-weight:700;line-height:1.4;}
+  .maint-banner .txt small{display:block;font-weight:500;color:var(--ink-soft);margin-top:2px;}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(10,30,32,.45);
+    display:flex;align-items:center;justify-content:center;
+    z-index:1000;padding:20px;
+  }
+  .modal-box{
+    background:#fff;border-radius:16px;padding:20px;max-width:340px;width:100%;
+    box-shadow:0 10px 30px rgba(0,0,0,.2);
+  }
+  .modal-msg{font-size:14px;color:var(--ink);line-height:1.5;margin-bottom:16px;white-space:pre-line;}
+  .modal-actions{display:flex;gap:8px;}
+  .modal-btn{
+    flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+    background:#fff;color:var(--ink-soft);font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;
+  }
+  .modal-btn.primary{background:var(--red);color:#fff;border-color:var(--red);}
+  .modal-btn.ok-only{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+
+  .login-wrap{
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);padding:20px;
+  }
+  .login-card{
+    background:var(--card);border:1px solid var(--border);border-radius:18px;
+    padding:28px 24px;max-width:340px;width:100%;box-shadow:0 10px 30px rgba(10,30,32,.08);
+  }
+  .login-card h1{font-size:19px;font-weight:700;color:var(--teal-dark);margin:0 0 4px;text-align:center;}
+  .login-card .sub{font-size:12.5px;color:var(--ink-soft);text-align:center;margin-bottom:20px;}
+  .login-field{margin-bottom:12px;}
+  .login-field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
+  .login-field input{
+    width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;
+    font-size:14px;font-family:inherit;
+  }
+  .login-btn{
+    width:100%;padding:12px;border:none;border-radius:12px;background:var(--teal-dark);
+    color:#fff;font-weight:700;font-size:14.5px;cursor:pointer;margin-top:6px;
+  }
+  .login-btn:disabled{opacity:.6;}
+  .login-error{font-size:12px;color:var(--red);text-align:center;margin-top:10px;min-height:14px;}
+  .config-warning{
+    background:var(--red-soft);border:1px solid #F0C6BB;border-radius:10px;padding:10px 12px;
+    font-size:11.5px;color:var(--red);margin-bottom:16px;line-height:1.5;
+  }
+  .logout-btn{
+    background:none;border:none;color:var(--ink-soft);font-size:11.5px;cursor:pointer;
+    text-decoration:underline;padding:0;margin-left:8px;
+  }
+
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-wrap">
+  <div class="login-card">
+    <h1>สมุดบันทึกร้านซัก-อบ</h1>
+    <div class="sub">เข้าสู่ระบบเพื่อดูและบันทึกข้อมูลร้าน</div>
+    <div id="configWarning" class="config-warning" style="display:none;">
+      ยังไม่ได้ตั้งค่า Supabase URL / Anon Key ในไฟล์นี้ — เปิดไฟล์ index.html ด้วยโปรแกรมแก้ไขข้อความ แล้วกรอกค่าที่ช่วง "SUPABASE_URL" และ "SUPABASE_ANON_KEY" ด้านบนของสคริปต์ก่อนใช้งาน
+    </div>
+    <div class="login-field">
+      <label>อีเมล</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="username"/>
+    </div>
+    <div class="login-field">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="login-btn" id="loginBtn">เข้าสู่ระบบ</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+<div id="appRoot" style="display:none;">
+<div class="root">
+  <div class="app" id="app">
+    <div class="header">
+      <div>
+        <h1>สมุดบันทึกร้านซัก-อบ</h1>
+        <div class="sub">บันทึกยอดใช้เครื่องรายวัน</div>
+      </div>
+      <button class="gear-btn" id="gearBtn" title="ตั้งค่าพารามิเตอร์">⚙</button><button class="logout-btn" id="logoutBtn">ออกจากระบบ</button>
+    </div>
+
+    <div id="settingsPanel" style="display:none;"></div>
+
+    <div class="tab-row">
+      <button class="tab-btn active" data-tab="entry">วันนี้</button>
+      <button class="tab-btn" data-tab="history">ประวัติ</button>
+      <button class="tab-btn" data-tab="payback">คืนทุน</button>
+      <button class="tab-btn" data-tab="machines">เครื่องจักร<span class="tab-dot" id="machineDot" style="display:none;"></span></button>
+    </div>
+
+    <div id="entryView"></div>
+    <div id="historyView" style="display:none;"></div>
+    <div id="paybackView" style="display:none;"></div>
+    <div id="machinesView" style="display:none;"></div>
+  </div>
+  <div id="modalOverlay" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-msg" id="modalMsg"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </div>
+  </div>
+</div>
+
+
+</div>
+
+<script>
+
+  // ============================================================
+  // Supabase configuration — fill these in with your own project's values
+  // (Supabase Dashboard -> Project Settings -> API)
+  // ============================================================
+  const SUPABASE_URL = 'https://qdhxdxdwwcytvmexvghd.supabase.co';       // e.g. https://xxxxxxxx.supabase.co
+  const SUPABASE_ANON_KEY = 'sb_publishable_sdBV0jM_Ac-2pBypQYHoJg_mCrnRrPT';
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Storage shim: mimics the same get/set/delete/list interface the app already
+  // uses, backed by a single Postgres table (kv_store) instead of Claude's
+  // built-in artifact storage. This means none of the app logic below needs
+  // to change — it still just calls window.storage.get/set/delete/list.
+  window.storage = {
+    async get(key){
+      const { data, error } = await sb.from('kv_store').select('value').eq('key', key).maybeSingle();
+      if(error){ console.error('storage.get error', error); throw error; }
+      if(!data) return null;
+      return { key, value: JSON.stringify(data.value) };
+    },
+    async set(key, value){
+      let parsed;
+      try{ parsed = JSON.parse(value); } catch(e){ parsed = value; }
+      const { error } = await sb.from('kv_store').upsert({ key, value: parsed, updated_at: new Date().toISOString() });
+      if(error){ console.error('storage.set error', error); return null; }
+      return { key, value };
+    },
+    async delete(key){
+      const { error } = await sb.from('kv_store').delete().eq('key', key);
+      if(error){ console.error('storage.delete error', error); return null; }
+      return { key, deleted:true };
+    },
+    async list(prefix){
+      let query = sb.from('kv_store').select('key');
+      if(prefix) query = query.like('key', prefix+'%');
+      const { data, error } = await query;
+      if(error){ console.error('storage.list error', error); return null; }
+      return { keys: (data||[]).map(r=>r.key) };
+    }
+  };
+
+
+(function(){
+  const DEFAULT_SETTINGS = {
+    electricityRate: 4.5,
+    waterRate: 18,
+    machines: [
+      {id:'w1', name:'เครื่องซัก 1 (8 กก.)', type:'ซัก', watt:750, minutes:35, liters:70, price:20, maintInterval:300},
+      {id:'w2', name:'เครื่องซัก 2 (8 กก.)', type:'ซัก', watt:750, minutes:35, liters:70, price:20, maintInterval:300},
+      {id:'w3', name:'เครื่องซัก 3 (10 กก.)', type:'ซัก', watt:900, minutes:40, liters:90, price:25, maintInterval:300},
+      {id:'d1', name:'เครื่องอบ 1', type:'อบ', watt:3500, minutes:45, liters:0, price:25, maintInterval:400},
+      {id:'d2', name:'เครื่องอบ 2', type:'อบ', watt:3500, minutes:45, liters:0, price:25, maintInterval:400},
+    ],
+    maintenance: {}
+  };
+
+  let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  let investments = [];
+  let counts = {};
+  let currentTab = 'entry';
+  let toastMsg = '';
+  let toastErr = false;
+  let saving = false;
+  let allEntries = {};
+  let loaded = false;
+  let expandedDates = new Set();
+
+  const todayStr = () => {
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  };
+  const TODAY = todayStr();
+  const thaiMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  function formatDateTh(dstr){
+    const [y,m,d] = dstr.split('-').map(Number);
+    return `${d} ${thaiMonths[m-1]} ${y+543}`;
+  }
+  function newId(prefix){ return prefix+'_'+Math.random().toString(36).slice(2,8); }
+
+  function esc(str){
+    return String(str==null?'':str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // Custom in-app confirm/alert modal. Native window.confirm/alert can be blocked or
+  // behave unreliably inside sandboxed iframes, so we use our own overlay instead.
+  function showConfirm(message){
+    return new Promise(resolve=>{
+      const overlay = document.getElementById('modalOverlay');
+      document.getElementById('modalMsg').textContent = message;
+      const actions = document.getElementById('modalActions');
+      actions.innerHTML = `
+        <button class="modal-btn" id="modalCancel">ยกเลิก</button>
+        <button class="modal-btn primary" id="modalOk">ยืนยันลบ</button>
+      `;
+      overlay.style.display = 'flex';
+      function cleanup(result){
+        overlay.style.display = 'none';
+        document.getElementById('modalOk').removeEventListener('click', onOk);
+        document.getElementById('modalCancel').removeEventListener('click', onCancel);
+        resolve(result);
+      }
+      function onOk(){ cleanup(true); }
+      function onCancel(){ cleanup(false); }
+      document.getElementById('modalOk').addEventListener('click', onOk);
+      document.getElementById('modalCancel').addEventListener('click', onCancel);
+    });
+  }
+  function showAlert(message){
+    return new Promise(resolve=>{
+      const overlay = document.getElementById('modalOverlay');
+      document.getElementById('modalMsg').textContent = message;
+      const actions = document.getElementById('modalActions');
+      actions.innerHTML = `<button class="modal-btn ok-only" id="modalOkOnly">ตกลง</button>`;
+      overlay.style.display = 'flex';
+      function onOk(){
+        overlay.style.display = 'none';
+        document.getElementById('modalOkOnly').removeEventListener('click', onOk);
+        resolve();
+      }
+      document.getElementById('modalOkOnly').addEventListener('click', onOk);
+    });
+  }
+
+  function machineCost(m){
+    const kwh = (m.watt * m.minutes) / 60000;
+    return kwh*settings.electricityRate + (m.liters/1000)*settings.waterRate;
+  }
+
+  function initCountsForToday(){
+    const existing = allEntries[TODAY];
+    counts = {};
+    settings.machines.forEach(m => counts[m.id] = existing && existing.counts[m.id] != null ? existing.counts[m.id] : 0);
+  }
+
+  async function loadAll(){
+    try{
+      const s = await window.storage.get('settings', false);
+      if(s && s.value){
+        const parsed = JSON.parse(s.value);
+        if(parsed){
+          settings = Object.assign({}, DEFAULT_SETTINGS, parsed);
+          if(!parsed.machines) settings.machines = DEFAULT_SETTINGS.machines;
+          if(!parsed.maintenance) settings.maintenance = {};
+        }
+      }
+    }catch(e){}
+    try{
+      const list = await window.storage.list('entry:', false);
+      if(list && list.keys){
+        for(const k of list.keys){
+          try{
+            const r = await window.storage.get(k, false);
+            if(r && r.value){
+              const date = k.replace('entry:','');
+              allEntries[date] = JSON.parse(r.value);
+            }
+          }catch(e){}
+        }
+      }
+    }catch(e){}
+    try{
+      const inv = await window.storage.get('investments', false);
+      if(inv && inv.value) investments = JSON.parse(inv.value);
+    }catch(e){}
+    // migrate legacy single-investment field if present
+    if((!investments || investments.length===0) && settings.investment){
+      investments = [{id:newId('inv'), date:TODAY, description:'เงินลงทุนเริ่มต้น (ย้ายจากค่าตั้งต้นเดิม)', amount:settings.investment}];
+      await saveInvestments();
+    }
+    initCountsForToday();
+    loaded = true;
+    render();
+  }
+
+  async function saveSettings(){
+    try{ await window.storage.set('settings', JSON.stringify(settings), false); }catch(e){}
+  }
+  async function saveInvestments(){
+    try{ await window.storage.set('investments', JSON.stringify(investments), false); }catch(e){}
+  }
+
+  async function saveToday(){
+    saving = true; render();
+    const snapshot = {};
+    settings.machines.forEach(m=>{
+      snapshot[m.id] = {price:m.price, cost:machineCost(m), name:m.name, type:m.type};
+    });
+    const payload = {counts: {...counts}, snapshot, ts: Date.now()};
+    try{
+      const res = await window.storage.set('entry:'+TODAY, JSON.stringify(payload), false);
+      if(res){
+        allEntries[TODAY] = payload;
+        toastMsg = 'บันทึกแล้ว ✓ (ล็อกอัตราค่าน้ำ-ไฟของวันนี้ไว้แล้ว)';
+        toastErr = false;
+      } else {
+        toastMsg = 'บันทึกไม่สำเร็จ ลองอีกครั้ง';
+        toastErr = true;
+      }
+    }catch(e){
+      toastMsg = 'บันทึกไม่สำเร็จ ลองอีกครั้ง';
+      toastErr = true;
+    }
+    saving = false;
+    render();
+    setTimeout(()=>{toastMsg='';render();}, 2600);
+  }
+
+  async function deleteEntry(date){
+    try{
+      await window.storage.delete('entry:'+date, false);
+      delete allEntries[date];
+      if(date === TODAY) initCountsForToday();
+      render();
+    }catch(e){}
+  }
+
+  // entryPayload: {counts, snapshot?} -- if snapshot present (saved historical day), use locked-in rates.
+  // if not present (live "today" preview), use current live settings.
+  function computeDayTotals(entryPayload){
+    const cnts = (entryPayload && entryPayload.counts) || {};
+    const snap = (entryPayload && entryPayload.snapshot) || null;
+    const ids = new Set(Object.keys(cnts));
+    settings.machines.forEach(m=>ids.add(m.id));
+    if(snap) Object.keys(snap).forEach(id=>ids.add(id));
+    let revenue=0, cost=0, cycles=0;
+    const perMachine = [];
+    ids.forEach(id=>{
+      const n = cnts[id]||0;
+      let price, costPer, name, type;
+      if(snap && snap[id]){
+        price = snap[id].price; costPer = snap[id].cost; name = snap[id].name; type = snap[id].type;
+      } else {
+        const m = settings.machines.find(x=>x.id===id);
+        if(!m){ price=0; costPer=0; name='(เครื่องที่ถูกลบ)'; type=''; }
+        else { price=m.price; costPer=machineCost(m); name=m.name; type=m.type; }
+      }
+      const rev = n*price, cst = n*costPer;
+      revenue+=rev; cost+=cst; cycles+=n;
+      perMachine.push({id,name,type,count:n,revenue:rev,cost:cst,profit:rev-cst});
+    });
+    return {revenue, cost, profit:revenue-cost, cycles, perMachine};
+  }
+
+  function getMachineAllTimeStats(){
+    const map = {};
+    Object.keys(allEntries).sort().forEach(d=>{
+      const t = computeDayTotals(allEntries[d]);
+      t.perMachine.forEach(pm=>{
+        if(!map[pm.id]) map[pm.id] = {id:pm.id, name:pm.name, type:pm.type, cycles:0, revenue:0, profit:0};
+        map[pm.id].cycles += pm.count;
+        map[pm.id].revenue += pm.revenue;
+        map[pm.id].profit += pm.profit;
+        map[pm.id].name = pm.name; // keep latest known name
+        map[pm.id].type = pm.type;
+      });
+    });
+    return map;
+  }
+
+  // Returns active machines that have passed their maintenance-check interval.
+  function getMaintenanceWarnings(){
+    const stats = getMachineAllTimeStats();
+    const list = [];
+    settings.machines.forEach(m=>{
+      const s = stats[m.id] || {cycles:0};
+      const maint = settings.maintenance[m.id] || {cyclesAtReset:0};
+      const sinceService = Math.max(0, s.cycles - (maint.cyclesAtReset||0));
+      const interval = m.maintInterval || 300;
+      if(sinceService >= interval){
+        list.push({id:m.id, name:m.name, sinceService, interval});
+      }
+    });
+    return list;
+  }
+
+  function renderEntryView(){
+    const el = document.getElementById('entryView');
+    let rows = settings.machines.map(m=>{
+      const n = counts[m.id]||0;
+      const sub = (n*m.price).toFixed(0);
+      return `
+      <div class="machine-row">
+        <div class="machine-info">
+          <div class="machine-name">${esc(m.name)}</div>
+          <div class="machine-meta">${esc(m.type)} · ${m.price}฿/ครั้ง</div>
+        </div>
+        <div class="stepper">
+          <button class="step-btn minus" data-id="${m.id}" data-op="-1">−</button>
+          <div class="count-display">${n}</div>
+          <button class="step-btn plus" data-id="${m.id}" data-op="1">+</button>
+        </div>
+        <div class="row-subtotal">฿${sub}</div>
+      </div>`;
+    }).join('');
+
+    const t = computeDayTotals({counts});
+    const alreadySaved = !!allEntries[TODAY];
+    const warnings = getMaintenanceWarnings();
+    const banner = warnings.length ? `
+      <div class="maint-banner" id="maintBanner">
+        <div class="icon">⚠️</div>
+        <div class="txt">${warnings.length} เครื่องถึงรอบควรตรวจเช็ค/ซ่อมบำรุงแล้ว
+          <small>${warnings.map(w=>esc(w.name)+' ('+w.sinceService+'/'+w.interval+' ครั้ง)').join(', ')} — แตะเพื่อดูรายละเอียด</small>
+        </div>
+      </div>` : '';
+
+    el.innerHTML = `
+      <div class="date-pill">📅 วันนี้ ${formatDateTh(TODAY)}</div>
+      ${banner}
+      <div class="card">
+        <h2>เครื่องที่ใช้วันนี้</h2>
+        ${rows}
+      </div>
+      <div class="meter">
+        <div class="meter-row"><span class="meter-label">จำนวนครั้งรวม</span><span class="meter-value">${t.cycles} ครั้ง</span></div>
+        <div class="meter-row"><span class="meter-label">รายได้รวม</span><span class="meter-value">฿${t.revenue.toFixed(0)}</span></div>
+        <div class="meter-row"><span class="meter-label">ต้นทุนน้ำ-ไฟ</span><span class="meter-value">฿${t.cost.toFixed(2)}</span></div>
+        <div class="meter-divider"></div>
+        <div class="meter-row"><span class="meter-label">กำไรวันนี้</span><span class="meter-value big">฿${t.profit.toFixed(0)}</span></div>
+      </div>
+      <button class="save-btn" id="saveBtn" ${saving?'disabled':''}>${saving?'กำลังบันทึก...':(alreadySaved?'อัปเดตข้อมูลวันนี้':'บันทึกข้อมูลวันนี้')}</button>
+      <div class="toast ${toastErr?'err':''}">${toastMsg}</div>
+    `;
+
+    el.querySelectorAll('.step-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.getAttribute('data-id');
+        const op = parseInt(btn.getAttribute('data-op'),10);
+        counts[id] = Math.max(0, (counts[id]||0) + op);
+        renderEntryView();
+      });
+    });
+    document.getElementById('saveBtn').addEventListener('click', saveToday);
+    const bannerEl = document.getElementById('maintBanner');
+    if(bannerEl){
+      bannerEl.addEventListener('click', ()=>{ currentTab = 'machines'; render(); });
+    }
+  }
+
+  async function exportCSV(){
+    const dates = Object.keys(allEntries).sort();
+    if(!dates.length){ await showAlert('ยังไม่มีข้อมูลให้ Export'); return; }
+    // build union of machine columns (id -> label), preserving first-seen order
+    const colOrder = [];
+    const colLabel = {};
+    dates.forEach(d=>{
+      const t = computeDayTotals(allEntries[d]);
+      t.perMachine.forEach(pm=>{
+        if(!(pm.id in colLabel)){ colLabel[pm.id]=pm.name; colOrder.push(pm.id); }
+      });
+    });
+    const header = ['วันที่', ...colOrder.map(id=>colLabel[id]+' (ครั้ง)'), 'จำนวนครั้งรวม', 'รายได้ (บาท)', 'ต้นทุนน้ำ-ไฟ (บาท)', 'กำไร (บาท)'];
+    const lines = [header.join(',')];
+    dates.forEach(d=>{
+      const t = computeDayTotals(allEntries[d]);
+      const byId = {};
+      t.perMachine.forEach(pm=>byId[pm.id]=pm.count);
+      const row = [d, ...colOrder.map(id=>byId[id]||0), t.cycles, t.revenue.toFixed(2), t.cost.toFixed(2), t.profit.toFixed(2)];
+      lines.push(row.join(','));
+    });
+    const csv = '\ufeff' + lines.join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'laundry_log_'+TODAY+'.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function renderHistoryView(){
+    const el = document.getElementById('historyView');
+    const dates = Object.keys(allEntries).sort().reverse();
+
+    const now = new Date();
+    const curMonthPrefix = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    let monthRevenue=0, monthCost=0, monthProfit=0, monthDays=0;
+    dates.forEach(d=>{
+      if(d.startsWith(curMonthPrefix)){
+        const t = computeDayTotals(allEntries[d]);
+        monthRevenue+=t.revenue; monthCost+=t.cost; monthProfit+=t.profit; monthDays++;
+      }
+    });
+    const avgDay = monthDays ? monthProfit/monthDays : 0;
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const projected = avgDay * daysInMonth;
+
+    const last7 = [];
+    for(let i=6;i>=0;i--){
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const ds = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      const entry = allEntries[ds];
+      const t = entry ? computeDayTotals(entry) : {profit:0};
+      last7.push({ds, profit:t.profit, dayLabel:String(d.getDate())});
+    }
+    const maxProfit = Math.max(1, ...last7.map(x=>x.profit));
+    const bars = last7.map(x=>`
+      <div class="bar-col">
+        <div class="bar" style="height:${Math.max(3,(x.profit/maxProfit)*100)}%;"></div>
+        <div class="bar-day">${x.dayLabel}</div>
+      </div>`).join('');
+
+    const histItems = dates.length ? dates.map(d=>{
+      const t = computeDayTotals(allEntries[d]);
+      const isOpen = expandedDates.has(d);
+      const detailRows = t.perMachine.filter(pm=>pm.count>0).map(pm=>`
+        <div class="detail-row"><span class="dname">${esc(pm.name)}</span><span>${pm.count} ครั้ง · ฿${pm.profit.toFixed(0)}</span></div>
+      `).join('') || '<div class="detail-row">ไม่มีการใช้งานเครื่องใดในวันนี้</div>';
+      return `
+      <div class="history-item" data-date="${d}">
+        <div class="history-item-top">
+          <div>
+            <div class="history-date">${formatDateTh(d)}</div>
+            <div class="history-sub">${t.cycles} ครั้ง · รายได้ ฿${t.revenue.toFixed(0)}</div>
+          </div>
+          <div class="history-right">
+            <div class="history-profit">฿${t.profit.toFixed(0)}</div>
+            <span class="history-caret ${isOpen?'open':''}">▾</span>
+            <button class="del-btn" data-date="${d}">✕</button>
+          </div>
+        </div>
+        ${isOpen ? `<div class="history-detail">${detailRows}</div>` : ''}
+      </div>`;
+    }).join('') : `<div class="empty-note">ยังไม่มีข้อมูลบันทึก เริ่มบันทึกวันนี้ได้เลย</div>`;
+
+    el.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-box"><div class="label">รายได้เดือนนี้</div><div class="value">฿${monthRevenue.toFixed(0)}</div></div>
+        <div class="stat-box profit"><div class="label">กำไรเดือนนี้</div><div class="value">฿${monthProfit.toFixed(0)}</div></div>
+        <div class="stat-box"><div class="label">เฉลี่ยกำไร/วัน</div><div class="value">฿${avgDay.toFixed(0)}</div></div>
+        <div class="stat-box profit"><div class="label">คาดการณ์ทั้งเดือน</div><div class="value">฿${projected.toFixed(0)}</div></div>
+      </div>
+      <div class="card"><h2>กำไร 7 วันล่าสุด</h2><div class="bar-wrap">${bars}</div></div>
+      <button class="export-btn" id="exportBtn">⬇ Export เป็น CSV</button>
+      <div class="card">
+        <h2>ประวัติรายวัน (แตะเพื่อดูรายละเอียด)</h2>
+        ${histItems}
+      </div>
+    `;
+    el.querySelectorAll('.history-item-top').forEach(top=>{
+      top.addEventListener('click', (ev)=>{
+        if(ev.target.closest('.del-btn')) return;
+        const d = top.closest('.history-item').getAttribute('data-date');
+        if(expandedDates.has(d)) expandedDates.delete(d); else expandedDates.add(d);
+        renderHistoryView();
+      });
+    });
+    el.querySelectorAll('.del-btn').forEach(btn=>{
+      btn.addEventListener('click', async (ev)=>{
+        ev.stopPropagation();
+        const d = btn.getAttribute('data-date');
+        const ok = await showConfirm('ลบข้อมูลวันที่ '+formatDateTh(d)+' ?\nการลบไม่สามารถกู้คืนได้');
+        if(ok) deleteEntry(d);
+      });
+    });
+    document.getElementById('exportBtn').addEventListener('click', exportCSV);
+  }
+
+  function renderPaybackView(){
+    const el = document.getElementById('paybackView');
+    const dates = Object.keys(allEntries).sort();
+    let cumulativeProfit = 0;
+    dates.forEach(d=>{ cumulativeProfit += computeDayTotals(allEntries[d]).profit; });
+    const totalInvestment = investments.reduce((a,b)=>a+(b.amount||0),0);
+    const pct = totalInvestment > 0 ? Math.min(100, (cumulativeProfit/totalInvestment)*100) : 0;
+    const remaining = Math.max(0, totalInvestment - cumulativeProfit);
+
+    const recent = dates.slice(-30);
+    let recentProfit = 0;
+    recent.forEach(d=>{ recentProfit += computeDayTotals(allEntries[d]).profit; });
+    const avgRecent = recent.length ? recentProfit/recent.length : 0;
+
+    let etaText = '-';
+    if(totalInvestment<=0){
+      etaText = 'ยังไม่ได้เพิ่มรายการลงทุน';
+    } else if(remaining <= 0){
+      etaText = 'คืนทุนแล้ว 🎉';
+    } else if(avgRecent > 0){
+      const daysLeft = Math.ceil(remaining/avgRecent);
+      const etaDate = new Date(); etaDate.setDate(etaDate.getDate()+daysLeft);
+      const etaStr = formatDateTh(etaDate.getFullYear()+'-'+String(etaDate.getMonth()+1).padStart(2,'0')+'-'+String(etaDate.getDate()).padStart(2,'0'));
+      etaText = `อีกประมาณ ${daysLeft} วัน (ราว ${etaStr})`;
+    } else {
+      etaText = 'ยังไม่มีข้อมูลเพียงพอประมาณการ';
+    }
+
+    const invRows = investments.slice().sort((a,b)=>a.date<b.date?1:-1).map(inv=>`
+      <div class="invest-item">
+        <div>
+          <div class="idesc">${esc(inv.description)||'(ไม่มีคำอธิบาย)'}</div>
+          <div class="idate">${formatDateTh(inv.date)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="iamount">฿${(inv.amount||0).toLocaleString()}</div>
+          <button class="del-btn" data-inv="${inv.id}">✕</button>
+        </div>
+      </div>`).join('') || '<div class="empty-note">ยังไม่มีรายการลงทุน เพิ่มรายการแรกด้านบน</div>';
+
+    el.innerHTML = `
+      <div class="card">
+        <h2>ความคืบหน้าการคืนทุน</h2>
+        <div class="payback-ring-wrap">
+          <div class="payback-big">${pct.toFixed(1)}%</div>
+          <div class="payback-sub">ของเงินลงทุนรวม ฿${totalInvestment.toLocaleString()}</div>
+          <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%;">${pct>12?'<span>'+pct.toFixed(0)+'%</span>':''}</div></div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-box profit"><div class="label">กำไรสะสมทั้งหมด</div><div class="value">฿${cumulativeProfit.toFixed(0)}</div></div>
+        <div class="stat-box"><div class="label">เหลืออีกเท่าไรถึงคืนทุน</div><div class="value">฿${remaining.toFixed(0)}</div></div>
+      </div>
+      <div class="card">
+        <h2>ประมาณการวันคืนทุน</h2>
+        <div style="font-size:14px;font-weight:600;color:var(--teal-dark);">${etaText}</div>
+        <div class="payback-sub" style="margin-top:6px;">คำนวณจากกำไรเฉลี่ย ฿${avgRecent.toFixed(0)}/วัน (${recent.length} วันล่าสุดที่มีบันทึก)</div>
+      </div>
+      <div class="card">
+        <h2>รายการเงินลงทุน (เริ่มต้น + อัปเกรดภายหลัง)</h2>
+        <div class="invest-form">
+          <div class="invest-form-row">
+            <input type="date" id="invDate" value="${TODAY}"/>
+            <input type="text" id="invDesc" placeholder="รายละเอียด เช่น ซื้อเครื่องซักเพิ่ม"/>
+            <input type="number" id="invAmount" placeholder="บาท"/>
+          </div>
+          <button class="add-invest-btn" id="addInvestBtn">+ เพิ่มรายการลงทุน</button>
+        </div>
+        ${invRows}
+      </div>
+    `;
+    document.getElementById('addInvestBtn').addEventListener('click', async ()=>{
+      const date = document.getElementById('invDate').value || TODAY;
+      const desc = document.getElementById('invDesc').value.trim();
+      const amount = parseFloat(document.getElementById('invAmount').value);
+      if(!amount || amount<=0){ await showAlert('กรุณากรอกจำนวนเงินให้ถูกต้อง'); return; }
+      investments.push({id:newId('inv'), date, description:desc||'รายการลงทุน', amount});
+      await saveInvestments();
+      renderPaybackView();
+    });
+    el.querySelectorAll('[data-inv]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const ok = await showConfirm('ลบรายการลงทุนนี้?\nการลบไม่สามารถกู้คืนได้');
+        if(!ok) return;
+        investments = investments.filter(i=>i.id!==btn.getAttribute('data-inv'));
+        await saveInvestments();
+        renderPaybackView();
+      });
+    });
+  }
+
+  function renderMachinesView(){
+    const el = document.getElementById('machinesView');
+    const stats = getMachineAllTimeStats();
+    const activeIds = new Set(settings.machines.map(m=>m.id));
+
+    const activeCards = settings.machines.map(m=>{
+      const s = stats[m.id] || {cycles:0, revenue:0, profit:0};
+      const maint = settings.maintenance[m.id] || {cyclesAtReset:0, lastDate:null};
+      const sinceService = Math.max(0, s.cycles - (maint.cyclesAtReset||0));
+      const interval = m.maintInterval || 300;
+      const warn = sinceService >= interval;
+      return `
+      <div class="machine-stat-card">
+        <div class="machine-stat-top">
+          <div class="machine-stat-name">${esc(m.name)}<div class="tag">${esc(m.type)}</div></div>
+          <span class="badge ${warn?'warn':'ok'}">${warn?'ควรตรวจเช็ค':'ปกติ'}</span>
+        </div>
+        <div class="mini-stat-grid">
+          <div class="mini-stat">ใช้งานสะสมทั้งหมด<b>${s.cycles} ครั้ง</b></div>
+          <div class="mini-stat">ตั้งแต่ซ่อมบำรุงล่าสุด<b>${sinceService} ครั้ง</b></div>
+          <div class="mini-stat">กำไรสะสมจากเครื่องนี้<b>฿${s.profit.toFixed(0)}</b></div>
+          <div class="mini-stat">ซ่อมบำรุงล่าสุด<b>${maint.lastDate?formatDateTh(maint.lastDate):'ยังไม่เคยบันทึก'}</b></div>
+        </div>
+        <div class="interval-row">
+          แจ้งเตือนทุก
+          <input type="number" data-mid="${m.id}" class="interval-input" value="${interval}"/>
+          ครั้ง
+        </div>
+        <button class="service-btn" data-service="${m.id}">✓ บันทึกว่าเพิ่งซ่อมบำรุงเสร็จ</button>
+      </div>`;
+    }).join('');
+
+    const removedIds = Object.keys(stats).filter(id=>!activeIds.has(id) && stats[id].cycles>0);
+    const removedCards = removedIds.map(id=>{
+      const s = stats[id];
+      return `
+      <div class="machine-stat-card" style="opacity:.7;">
+        <div class="machine-stat-top">
+          <div class="machine-stat-name">${esc(s.name)}<div class="tag">${esc(s.type)} · เครื่องที่ถูกลบออกแล้ว</div></div>
+        </div>
+        <div class="mini-stat-grid">
+          <div class="mini-stat">ใช้งานสะสมทั้งหมด<b>${s.cycles} ครั้ง</b></div>
+          <div class="mini-stat">กำไรสะสมจากเครื่องนี้<b>฿${s.profit.toFixed(0)}</b></div>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="card" style="padding-bottom:4px;">
+        <h2>สรุปการใช้งานเพื่อวางแผนซ่อมบำรุง</h2>
+        <div class="payback-sub" style="margin-bottom:10px;">นับจำนวนครั้งสะสมของแต่ละเครื่อง ใช้ประกอบการวางแผนตรวจเช็ค/ซ่อมบำรุงตามรอบ</div>
+      </div>
+      ${activeCards}
+      ${removedCards}
+    `;
+    el.querySelectorAll('.interval-input').forEach(inp=>{
+      inp.addEventListener('change', async ()=>{
+        const mid = inp.getAttribute('data-mid');
+        const m = settings.machines.find(x=>x.id===mid);
+        if(m){ m.maintInterval = parseFloat(inp.value)||300; await saveSettings(); renderMachinesView(); }
+      });
+    });
+    el.querySelectorAll('[data-service]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const mid = btn.getAttribute('data-service');
+        const s = stats[mid] || {cycles:0};
+        settings.maintenance[mid] = {cyclesAtReset: s.cycles, lastDate: TODAY};
+        await saveSettings();
+        renderMachinesView();
+      });
+    });
+  }
+
+  function renderSettings(){
+    const panel = document.getElementById('settingsPanel');
+    if(panel.style.display === 'none'){ panel.innerHTML=''; return; }
+    const machineCards = settings.machines.map((m,i)=>`
+      <div class="machine-settings-card">
+        <div class="msc-title-row">
+          <input class="name-input" type="text" value="${esc(m.name)}" data-idx="${i}" data-field="name"/>
+          <button class="msc-del" data-delidx="${i}" title="ลบเครื่องนี้">✕</button>
+        </div>
+        <div class="msc-grid">
+          <div class="msc-field"><label>ประเภท</label>
+            <select data-idx="${i}" data-field="type">
+              <option value="ซัก" ${m.type==='ซัก'?'selected':''}>ซัก</option>
+              <option value="อบ" ${m.type==='อบ'?'selected':''}>อบ</option>
+            </select>
+          </div>
+          <div class="msc-field"><label>ราคาขาย (บาท/ครั้ง)</label><input type="number" value="${m.price}" data-idx="${i}" data-field="price"/></div>
+          <div class="msc-field"><label>กำลังไฟ (วัตต์)</label><input type="number" value="${m.watt}" data-idx="${i}" data-field="watt"/></div>
+          <div class="msc-field"><label>เวลาใช้งาน (นาที/ครั้ง)</label><input type="number" value="${m.minutes}" data-idx="${i}" data-field="minutes"/></div>
+          <div class="msc-field"><label>น้ำที่ใช้ (ลิตร/ครั้ง)</label><input type="number" value="${m.liters}" data-idx="${i}" data-field="liters"/></div>
+          <div class="msc-field"><label>แจ้งเตือนซ่อมทุก (ครั้ง)</label><input type="number" value="${m.maintInterval||300}" data-idx="${i}" data-field="maintInterval"/></div>
+        </div>
+        <div class="msc-computed" data-computed-for="${i}">ต้นทุนน้ำ+ไฟ/ครั้ง: ฿${machineCost(m).toFixed(2)}</div>
+      </div>`).join('');
+
+    panel.innerHTML = `
+      <div class="settings-panel">
+        <h2 style="font-size:14.5px;font-weight:700;color:var(--teal-dark);margin:0 0 10px;">ตั้งค่าพารามิเตอร์</h2>
+        <div class="payback-sub" style="margin-bottom:10px;">การเปลี่ยนอัตราค่าน้ำ-ไฟที่นี่ จะมีผลกับ "วันนี้" เป็นต้นไปเท่านั้น ข้อมูลวันก่อนหน้าที่บันทึกไปแล้วจะไม่ถูกกระทบ เพราะระบบล็อกอัตราของแต่ละวันไว้ตอนกดบันทึกแล้ว</div>
+        <div class="rate-grid">
+          <div class="rate-field"><label>อัตราค่าไฟ (บาท/หน่วย)</label><input type="number" step="0.01" id="rateElec" value="${settings.electricityRate}"/></div>
+          <div class="rate-field"><label>อัตราค่าน้ำ (บาท/ลบ.ม.)</label><input type="number" step="0.01" id="rateWater" value="${settings.waterRate}"/></div>
+        </div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">เครื่องทั้งหมด (คำนวณต้นทุนน้ำ-ไฟให้อัตโนมัติ)</div>
+        ${machineCards}
+        <button class="add-machine-btn" id="addMachineBtn">+ เพิ่มเครื่องใหม่</button>
+        <button class="close-settings" id="closeSettings">บันทึกและปิด</button>
+      </div>`;
+
+    function recomputeAll(){
+      const elec = parseFloat(document.getElementById('rateElec').value) || 0;
+      const water = parseFloat(document.getElementById('rateWater').value) || 0;
+      panel.querySelectorAll('.machine-settings-card').forEach((card)=>{
+        const watt = parseFloat(card.querySelector('[data-field="watt"]').value) || 0;
+        const minutes = parseFloat(card.querySelector('[data-field="minutes"]').value) || 0;
+        const liters = parseFloat(card.querySelector('[data-field="liters"]').value) || 0;
+        const kwh = (watt*minutes)/60000;
+        const cost = kwh*elec + (liters/1000)*water;
+        card.querySelector('.msc-computed').textContent = 'ต้นทุนน้ำ+ไฟ/ครั้ง: ฿'+cost.toFixed(2);
+      });
+    }
+    panel.querySelectorAll('input,select').forEach(inp=>{ inp.addEventListener('input', recomputeAll); });
+
+    panel.querySelectorAll('.msc-del').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const idx = parseInt(btn.getAttribute('data-delidx'),10);
+        if(settings.machines.length<=1){ await showAlert('ต้องมีอย่างน้อย 1 เครื่อง'); return; }
+        const ok = await showConfirm('ลบเครื่อง "'+settings.machines[idx].name+'" ?\nข้อมูลประวัติเก่าของเครื่องนี้จะยังอยู่ครบ (ดูได้ในแท็บเครื่องจักร) แต่จะไม่แสดงในหน้าบันทึกวันนี้อีกต่อไป');
+        if(!ok) return;
+        settings.machines.splice(idx,1);
+        await saveSettings();
+        renderSettings();
+        initCountsForToday();
+        render();
+      });
+    });
+
+    document.getElementById('addMachineBtn').addEventListener('click', async ()=>{
+      settings.machines.push({id:newId('m'), name:'เครื่องใหม่', type:'ซัก', watt:750, minutes:35, liters:70, price:20, maintInterval:300});
+      await saveSettings();
+      renderSettings();
+    });
+
+    document.getElementById('closeSettings').addEventListener('click', async ()=>{
+      settings.electricityRate = parseFloat(document.getElementById('rateElec').value) || 0;
+      settings.waterRate = parseFloat(document.getElementById('rateWater').value) || 0;
+      panel.querySelectorAll('.machine-settings-card').forEach((card, idx)=>{
+        settings.machines[idx].name = card.querySelector('[data-field="name"]').value.trim() || ('เครื่อง '+(idx+1));
+        settings.machines[idx].type = card.querySelector('[data-field="type"]').value;
+        settings.machines[idx].watt = parseFloat(card.querySelector('[data-field="watt"]').value) || 0;
+        settings.machines[idx].minutes = parseFloat(card.querySelector('[data-field="minutes"]').value) || 0;
+        settings.machines[idx].liters = parseFloat(card.querySelector('[data-field="liters"]').value) || 0;
+        settings.machines[idx].price = parseFloat(card.querySelector('[data-field="price"]').value) || 0;
+        settings.machines[idx].maintInterval = parseFloat(card.querySelector('[data-field="maintInterval"]').value) || 300;
+      });
+      await saveSettings();
+      panel.style.display='none';
+      renderSettings();
+      initCountsForToday();
+      render();
+    });
+  }
+
+  function render(){
+    if(!loaded){
+      document.getElementById('entryView').innerHTML = '<div class="empty-note">กำลังโหลดข้อมูล...</div>';
+      return;
+    }
+    renderEntryView();
+    renderHistoryView();
+    renderPaybackView();
+    renderMachinesView();
+    document.getElementById('entryView').style.display = currentTab==='entry' ? 'block':'none';
+    document.getElementById('historyView').style.display = currentTab==='history' ? 'block':'none';
+    document.getElementById('paybackView').style.display = currentTab==='payback' ? 'block':'none';
+    document.getElementById('machinesView').style.display = currentTab==='machines' ? 'block':'none';
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      b.classList.toggle('active', b.getAttribute('data-tab')===currentTab);
+    });
+    const dot = document.getElementById('machineDot');
+    if(dot) dot.style.display = getMaintenanceWarnings().length ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ currentTab = btn.getAttribute('data-tab'); render(); });
+  });
+
+  document.getElementById('gearBtn').addEventListener('click', ()=>{
+    const panel = document.getElementById('settingsPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    renderSettings();
+  });
+
+  function showLogin(){
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appRoot').style.display = 'none';
+    if(SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON_KEY === 'YOUR_SUPABASE_ANON_KEY'){
+      document.getElementById('configWarning').style.display = 'block';
+    }
+  }
+  function showApp(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appRoot').style.display = 'block';
+    loadAll();
+  }
+
+  document.getElementById('loginBtn').addEventListener('click', async ()=>{
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.textContent = '';
+    if(!email || !password){ errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
+    btn.disabled = true; btn.textContent = 'กำลังเข้าสู่ระบบ...';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+    if(error){ errEl.textContent = 'เข้าสู่ระบบไม่สำเร็จ: ' + error.message; return; }
+    showApp();
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+
+  (async function initAuth(){
+    try{
+      const { data: { session } } = await sb.auth.getSession();
+      if(session) showApp(); else showLogin();
+    }catch(e){ showLogin(); }
+  })();
+})();
+
+</script>
+</body>
+</html>
