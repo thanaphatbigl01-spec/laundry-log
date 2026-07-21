@@ -127,14 +127,14 @@
   .rate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .rate-field label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
   .rate-field input,.rate-field select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13.5px;font-family:inherit;text-align:center;}
-  .machine-settings-card{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#FAFCFC;position:relative;}
+  .machine-settings-card, .overhead-item-card{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#FAFCFC;position:relative;}
   .machine-settings-card .msc-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:6px;}
   .machine-settings-card .msc-title-row input.name-input{flex:1;font-size:13px;font-weight:700;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-family:inherit;}
   .msc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .msc-field label{display:block;font-size:10.5px;color:var(--ink-soft);margin-bottom:3px;}
   .msc-field input,.msc-field select{width:100%;padding:6px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;text-align:center;}
   .msc-computed{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--gold);font-weight:700;text-align:right;}
-  .msc-del{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--red);font-size:12px;cursor:pointer;flex-shrink:0;}
+  .msc-del, .osc-del{width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:#fff;color:var(--red);font-size:12px;cursor:pointer;flex-shrink:0;}
   .add-machine-btn{
     width:100%;padding:10px;border-radius:10px;border:1.5px dashed var(--teal);background:var(--teal-pale);
     color:var(--teal-dark);font-weight:700;font-size:13px;cursor:pointer;margin-bottom:12px;
@@ -353,6 +353,10 @@
       {id:'d1', name:'เครื่องอบ 1', type:'อบ', watt:3500, minutes:45, liters:0, price:25, maintInterval:400},
       {id:'d2', name:'เครื่องอบ 2', type:'อบ', watt:3500, minutes:45, liters:0, price:25, maintInterval:400},
     ],
+    overheadItems: [
+      {id:'oh1', name:'หลอดไฟ', watt:36, qty:4, hoursPerDay:11},
+      {id:'oh2', name:'พัดลม', watt:60, qty:2, hoursPerDay:11},
+    ],
     maintenance: {}
   };
 
@@ -430,6 +434,13 @@
     return kwh*settings.electricityRate + (m.liters/1000)*settings.waterRate;
   }
 
+  function overheadCostPerDay(){
+    return (settings.overheadItems||[]).reduce((sum,it)=>{
+      const kwh = (it.watt * it.qty * it.hoursPerDay) / 1000;
+      return sum + kwh*settings.electricityRate;
+    }, 0);
+  }
+
   function initCountsForToday(){
     const existing = allEntries[TODAY];
     counts = {};
@@ -445,6 +456,7 @@
           settings = Object.assign({}, DEFAULT_SETTINGS, parsed);
           if(!parsed.machines) settings.machines = DEFAULT_SETTINGS.machines;
           if(!parsed.maintenance) settings.maintenance = {};
+          if(!parsed.overheadItems) settings.overheadItems = DEFAULT_SETTINGS.overheadItems;
         }
       }
     }catch(e){}
@@ -489,7 +501,11 @@
     settings.machines.forEach(m=>{
       snapshot[m.id] = {price:m.price, cost:machineCost(m), name:m.name, type:m.type};
     });
-    const payload = {counts: {...counts}, snapshot, ts: Date.now()};
+    const overhead = {
+      costPerDay: overheadCostPerDay(),
+      items: (settings.overheadItems||[]).map(it=>({name:it.name, watt:it.watt, qty:it.qty, hoursPerDay:it.hoursPerDay}))
+    };
+    const payload = {counts: {...counts}, snapshot, overhead, ts: Date.now()};
     try{
       const res = await window.storage.set('entry:'+TODAY, JSON.stringify(payload), false);
       if(res){
@@ -542,7 +558,10 @@
       revenue+=rev; cost+=cst; cycles+=n;
       perMachine.push({id,name,type,count:n,revenue:rev,cost:cst,profit:rev-cst});
     });
-    return {revenue, cost, profit:revenue-cost, cycles, perMachine};
+    const overheadCost = (entryPayload && entryPayload.overhead && typeof entryPayload.overhead.costPerDay === 'number')
+      ? entryPayload.overhead.costPerDay
+      : overheadCostPerDay();
+    return {revenue, cost, overheadCost, profit:revenue-cost-overheadCost, cycles, perMachine};
   }
 
   function getMachineAllTimeStats(){
@@ -618,7 +637,8 @@
       <div class="meter">
         <div class="meter-row"><span class="meter-label">จำนวนครั้งรวม</span><span class="meter-value">${t.cycles} ครั้ง</span></div>
         <div class="meter-row"><span class="meter-label">รายได้รวม</span><span class="meter-value">฿${t.revenue.toFixed(0)}</span></div>
-        <div class="meter-row"><span class="meter-label">ต้นทุนน้ำ-ไฟ</span><span class="meter-value">฿${t.cost.toFixed(2)}</span></div>
+        <div class="meter-row"><span class="meter-label">ต้นทุนน้ำ-ไฟเครื่อง</span><span class="meter-value">฿${t.cost.toFixed(2)}</span></div>
+        <div class="meter-row"><span class="meter-label">ค่าไฟอุปกรณ์อื่นๆ (พัดลม/ไฟ)</span><span class="meter-value">฿${t.overheadCost.toFixed(2)}</span></div>
         <div class="meter-divider"></div>
         <div class="meter-row"><span class="meter-label">กำไรวันนี้</span><span class="meter-value big">฿${t.profit.toFixed(0)}</span></div>
       </div>
@@ -653,13 +673,13 @@
         if(!(pm.id in colLabel)){ colLabel[pm.id]=pm.name; colOrder.push(pm.id); }
       });
     });
-    const header = ['วันที่', ...colOrder.map(id=>colLabel[id]+' (ครั้ง)'), 'จำนวนครั้งรวม', 'รายได้ (บาท)', 'ต้นทุนน้ำ-ไฟ (บาท)', 'กำไร (บาท)'];
+    const header = ['วันที่', ...colOrder.map(id=>colLabel[id]+' (ครั้ง)'), 'จำนวนครั้งรวม', 'รายได้ (บาท)', 'ต้นทุนน้ำ-ไฟเครื่อง (บาท)', 'ค่าไฟอุปกรณ์อื่นๆ (บาท)', 'กำไร (บาท)'];
     const lines = [header.join(',')];
     dates.forEach(d=>{
       const t = computeDayTotals(allEntries[d]);
       const byId = {};
       t.perMachine.forEach(pm=>byId[pm.id]=pm.count);
-      const row = [d, ...colOrder.map(id=>byId[id]||0), t.cycles, t.revenue.toFixed(2), t.cost.toFixed(2), t.profit.toFixed(2)];
+      const row = [d, ...colOrder.map(id=>byId[id]||0), t.cycles, t.revenue.toFixed(2), t.cost.toFixed(2), t.overheadCost.toFixed(2), t.profit.toFixed(2)];
       lines.push(row.join(','));
     });
     const csv = '\ufeff' + lines.join('\r\n');
@@ -709,6 +729,7 @@
       const detailRows = t.perMachine.filter(pm=>pm.count>0).map(pm=>`
         <div class="detail-row"><span class="dname">${esc(pm.name)}</span><span>${pm.count} ครั้ง · ฿${pm.profit.toFixed(0)}</span></div>
       `).join('') || '<div class="detail-row">ไม่มีการใช้งานเครื่องใดในวันนี้</div>';
+      const overheadRow = `<div class="detail-row"><span class="dname">ค่าไฟอุปกรณ์อื่นๆ (พัดลม/ไฟ)</span><span>−฿${t.overheadCost.toFixed(0)}</span></div>`;
       return `
       <div class="history-item" data-date="${d}">
         <div class="history-item-top">
@@ -722,7 +743,7 @@
             <button class="del-btn" data-date="${d}">✕</button>
           </div>
         </div>
-        ${isOpen ? `<div class="history-detail">${detailRows}</div>` : ''}
+        ${isOpen ? `<div class="history-detail">${detailRows}${overheadRow}</div>` : ''}
       </div>`;
     }).join('') : `<div class="empty-note">ยังไม่มีข้อมูลบันทึก เริ่มบันทึกวันนี้ได้เลย</div>`;
 
@@ -948,6 +969,25 @@
         <div class="msc-computed" data-computed-for="${i}">ต้นทุนน้ำ+ไฟ/ครั้ง: ฿${machineCost(m).toFixed(2)}</div>
       </div>`).join('');
 
+    const overheadCards = (settings.overheadItems||[]).map((it,i)=>{
+      const kwh = (it.watt*it.qty*it.hoursPerDay)/1000;
+      const cost = kwh*settings.electricityRate;
+      return `
+      <div class="overhead-item-card">
+        <div class="msc-title-row">
+          <input class="name-input" type="text" value="${esc(it.name)}" data-oidx="${i}" data-ofield="name"/>
+          <button class="osc-del" data-odelidx="${i}" title="ลบรายการนี้">✕</button>
+        </div>
+        <div class="msc-grid">
+          <div class="msc-field"><label>กำลังไฟ (วัตต์/ชิ้น)</label><input type="number" value="${it.watt}" data-oidx="${i}" data-ofield="watt"/></div>
+          <div class="msc-field"><label>จำนวน (ชิ้น)</label><input type="number" value="${it.qty}" data-oidx="${i}" data-ofield="qty"/></div>
+          <div class="msc-field"><label>ใช้งาน (ชม./วัน)</label><input type="number" value="${it.hoursPerDay}" data-oidx="${i}" data-ofield="hoursPerDay"/></div>
+        </div>
+        <div class="msc-computed" data-ocomputed-for="${i}">ค่าไฟ/วัน: ฿${cost.toFixed(2)}</div>
+      </div>`;
+    }).join('');
+    const overheadTotal = overheadCostPerDay();
+
     panel.innerHTML = `
       <div class="settings-panel">
         <h2 style="font-size:14.5px;font-weight:700;color:var(--teal-dark);margin:0 0 10px;">ตั้งค่าพารามิเตอร์</h2>
@@ -959,6 +999,13 @@
         <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:8px;">เครื่องทั้งหมด (คำนวณต้นทุนน้ำ-ไฟให้อัตโนมัติ)</div>
         ${machineCards}
         <button class="add-machine-btn" id="addMachineBtn">+ เพิ่มเครื่องใหม่</button>
+
+        <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin:16px 0 4px;">อุปกรณ์ไฟฟ้าอื่นๆ ที่ไม่ใช่เครื่องซัก-อบ (พัดลม หลอดไฟ ฯลฯ)</div>
+        <div class="payback-sub" style="margin-bottom:10px;">คำนวณเป็นค่าไฟคงที่ต่อวัน จะถูกหักออกจากกำไรทุกวันโดยอัตโนมัติ (ล็อกค่าของวันนั้นไว้เหมือนเครื่องซัก-อบ ไม่กระทบข้อมูลย้อนหลัง)</div>
+        ${overheadCards}
+        <div class="msc-computed" id="overheadTotalDisplay" style="text-align:left;margin-bottom:12px;">รวมค่าไฟอุปกรณ์อื่นๆ: ฿${overheadTotal.toFixed(2)} / วัน</div>
+        <button class="add-machine-btn" id="addOverheadBtn">+ เพิ่มอุปกรณ์ไฟฟ้าอื่นๆ</button>
+
         <button class="close-settings" id="closeSettings">บันทึกและปิด</button>
       </div>`;
 
@@ -973,6 +1020,18 @@
         const cost = kwh*elec + (liters/1000)*water;
         card.querySelector('.msc-computed').textContent = 'ต้นทุนน้ำ+ไฟ/ครั้ง: ฿'+cost.toFixed(2);
       });
+      let overheadSum = 0;
+      panel.querySelectorAll('.overhead-item-card').forEach((card)=>{
+        const watt = parseFloat(card.querySelector('[data-ofield="watt"]').value) || 0;
+        const qty = parseFloat(card.querySelector('[data-ofield="qty"]').value) || 0;
+        const hrs = parseFloat(card.querySelector('[data-ofield="hoursPerDay"]').value) || 0;
+        const kwh = (watt*qty*hrs)/1000;
+        const cost = kwh*elec;
+        overheadSum += cost;
+        card.querySelector('.msc-computed').textContent = 'ค่าไฟ/วัน: ฿'+cost.toFixed(2);
+      });
+      const totalEl = document.getElementById('overheadTotalDisplay');
+      if(totalEl) totalEl.textContent = 'รวมค่าไฟอุปกรณ์อื่นๆ: ฿'+overheadSum.toFixed(2)+' / วัน';
     }
     panel.querySelectorAll('input,select').forEach(inp=>{ inp.addEventListener('input', recomputeAll); });
 
@@ -996,6 +1055,24 @@
       renderSettings();
     });
 
+    panel.querySelectorAll('.osc-del').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const idx = parseInt(btn.getAttribute('data-odelidx'),10);
+        const ok = await showConfirm('ลบรายการ "'+settings.overheadItems[idx].name+'" ?\nข้อมูลย้อนหลังที่บันทึกไปแล้วจะไม่ถูกกระทบ');
+        if(!ok) return;
+        settings.overheadItems.splice(idx,1);
+        await saveSettings();
+        renderSettings();
+      });
+    });
+
+    document.getElementById('addOverheadBtn').addEventListener('click', async ()=>{
+      settings.overheadItems = settings.overheadItems || [];
+      settings.overheadItems.push({id:newId('oh'), name:'อุปกรณ์ใหม่', watt:50, qty:1, hoursPerDay:11});
+      await saveSettings();
+      renderSettings();
+    });
+
     document.getElementById('closeSettings').addEventListener('click', async ()=>{
       settings.electricityRate = parseFloat(document.getElementById('rateElec').value) || 0;
       settings.waterRate = parseFloat(document.getElementById('rateWater').value) || 0;
@@ -1007,6 +1084,12 @@
         settings.machines[idx].liters = parseFloat(card.querySelector('[data-field="liters"]').value) || 0;
         settings.machines[idx].price = parseFloat(card.querySelector('[data-field="price"]').value) || 0;
         settings.machines[idx].maintInterval = parseFloat(card.querySelector('[data-field="maintInterval"]').value) || 300;
+      });
+      panel.querySelectorAll('.overhead-item-card').forEach((card, idx)=>{
+        settings.overheadItems[idx].name = card.querySelector('[data-ofield="name"]').value.trim() || ('อุปกรณ์ '+(idx+1));
+        settings.overheadItems[idx].watt = parseFloat(card.querySelector('[data-ofield="watt"]').value) || 0;
+        settings.overheadItems[idx].qty = parseFloat(card.querySelector('[data-ofield="qty"]').value) || 0;
+        settings.overheadItems[idx].hoursPerDay = parseFloat(card.querySelector('[data-ofield="hoursPerDay"]').value) || 0;
       });
       await saveSettings();
       panel.style.display='none';
